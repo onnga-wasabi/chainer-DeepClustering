@@ -8,6 +8,7 @@ from chainer.datasets.cifar import (
     get_cifar100,
 )
 from utils.model import Alex
+from utils.dataset import load_cifar
 
 
 def parse():
@@ -38,16 +39,8 @@ def main():
     print('# epoch: {}'.format(args.epoch))
     print('')
 
-    if args.dataset == 'cifar10':
-        print('Using CIFAR10 dataset.')
-        class_labels = 10
-        train, test = get_cifar10()
-    elif args.dataset == 'cifar100':
-        print('Using CIFAR100 dataset.')
-        class_labels = 100
-        train, test = get_cifar100()
-    else:
-        raise RuntimeError('Invalid dataset choice.')
+    train_x, train_y, val_x, val_y = load_cifar()
+    class_labels = 10
 
     model = L.Classifier(Alex(class_labels))
     if args.gpu >= 0:
@@ -59,12 +52,11 @@ def main():
     optimizer.setup(model)
     optimizer.add_hook(chainer.optimizer.WeightDecay(5e-4))
 
-    train_iter = chainer.iterators.SerialIterator(train, args.batchsize)
-    test_iter = chainer.iterators.SerialIterator(test, args.batchsize,
-                                                 repeat=False, shuffle=False)
-
-    for i in range(args.epoch):
-        pass
+    batch = 5
+    for epoch in range(1, args.epoch + 1):
+        idx = np.random.permutation(len(train_x))
+        for itr in range(0, len(train_x), batch):
+            x = train_x[idx][itr:itr + batch]
 
 
 if __name__ == '__main__':

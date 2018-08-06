@@ -37,7 +37,7 @@ class Alex(chainer.Chain):
         return h
 
 
-class DeepClusteringClassifier(L.Chaine):
+class DeepClusteringClassifier(L.Classifier):
     def __call__(self, *args, **kwargs):
         if isinstance(self.label_key, int):
             if not (-len(args) <= self.label_key < len(args)):
