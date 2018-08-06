@@ -62,16 +62,9 @@ def main():
     train_iter = chainer.iterators.SerialIterator(train, args.batchsize)
     test_iter = chainer.iterators.SerialIterator(test, args.batchsize,
                                                  repeat=False, shuffle=False)
-    train = chainer.training.updaters.StandardUpdater(train_iter, optimizer, device=args.gpu)
 
-    trainer = chainer.training.Trainer(train, stop_trigger=(args.epoch, 'epoch'))
-    trainer.extend(chainer.training.extensions.Evaluator(test_iter, model, device=args.gpu))
-    trainer.extend(chainer.training.extensions.LogReport())
-    trainer.extend(chainer.training.extensions.PrintReport(
-        ['epoch', 'main/accuracy', 'validation/main/accuracy']
-    ))
-    trainer.extend(chainer.training.extensions.ProgressBar())
-    trainer.run()
+    for i in range(args.epoch):
+        pass
 
 
 if __name__ == '__main__':

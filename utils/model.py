@@ -24,4 +24,47 @@ class Alex(chainer.Chain):
         h = F.max_pooling_2d(F.relu(self.conv5(h)), 2)
         h = F.relu(self.fc6(h))
         h = F.relu(self.fc7(h))
+
         return self.fc8(h)
+
+    def encode(self, x):
+        h = F.max_pooling_2d(F.relu(self.conv1(x)), 2)
+        h = F.max_pooling_2d(F.relu(self.conv2(h)), 2)
+        h = F.relu(self.conv3(h))
+        h = F.relu(self.conv4(h))
+        h = F.max_pooling_2d(F.relu(self.conv5(h)), 2)
+
+        return h
+
+
+class DeepClusteringClassifier(L.Chaine):
+    def __call__(self, *args, **kwargs):
+        if isinstance(self.label_key, int):
+            if not (-len(args) <= self.label_key < len(args)):
+                msg = 'Label key %d is out of bounds' % self.label_key
+                raise ValueError(msg)
+            t = args[self.label_key]
+            if self.label_key == -1:
+                args = args[:-1]
+            else:
+                args = args[:self.label_key] + args[self.label_key + 1:]
+        elif isinstance(self.label_key, str):
+            if self.label_key not in kwargs:
+                msg = 'Label key "%s" is not found' % self.label_key
+                raise ValueError(msg)
+            t = kwargs[self.label_key]
+            del kwargs[self.label_key]
+
+        self.y = None
+        self.loss = None
+        self.accuracy = None
+        embed = self.predictor.encode()
+        km = DeepClusteringKMeans(X)
+        self.y = self.predictor(*args, **kwargs)
+        self.loss = self.lossfun(self.y, t)
+        chainer.reporter.report({'loss': self.loss}, self)
+        if self.compute_accuracy:
+            self.accuracy = self.accfun(self.y, t)
+            chainer.reporter.report({'accuracy': self.accuracy}, self)
+
+        return self.loss
