@@ -37,6 +37,20 @@ class Alex(chainer.Chain):
         return h
 
 
+class MLP(chainer.Chain):
+    def __init__(self, n_class):
+        super(MLP, self).__init__()
+        with self.init_scope():
+            self.fc1 = L.Linear(None, 4096)
+            self.fc2 = L.Linear(None, 4096)
+            self.fc3 = L.Linear(None, n_class)
+
+    def __call__(self, x):
+        h = F.relu(self.fc1(x))
+        h = F.relu(self.fc2(h))
+        return self.fc3(h)
+
+
 class DeepClusteringClassifier(L.Classifier):
     def __call__(self, *args, **kwargs):
         if isinstance(self.label_key, int):

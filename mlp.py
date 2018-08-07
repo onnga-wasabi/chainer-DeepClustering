@@ -10,7 +10,7 @@ from chainer.datasets.cifar import (
 )
 from sklearn.decomposition import PCA
 from sklearn.cluster import KMeans
-from utils.model import Alex
+from utils.model import Alex, MLP
 from utils.dataset import load_cifar
 
 
@@ -45,7 +45,7 @@ def main():
     train_x, train_y, val_x, val_y = load_cifar()
     class_labels = 10
 
-    model = L.Classifier(Alex(class_labels))
+    model = L.Classifier(MLP(class_labels))
     if args.gpu >= 0:
         # Make a specified GPU current
         chainer.backends.cuda.get_device_from_id(1).use()
@@ -56,27 +56,36 @@ def main():
     optimizer.add_hook(chainer.optimizer.WeightDecay(5e-4))
 
     batch = 100
-    for epoch in range(1, args.epoch + 1):
 
-        # k-means
-        embeds = []
-        append = embeds.append
-        for itr in range(0, len(train_x), batch):
-            x = train_x[itr:itr + batch]
-            x = cuda.to_gpu(x.astype('f'))
-            x = cuda.to_cpu(model.predictor.encode(x).data)
-            [append(embed.flatten()) for embed in x]
-        embeds = np.array(embeds)
-        pca = PCA(n_components=256)
-        embeds = pca.fit_transform(embeds)
-        km = KMeans(n_clusters=100)
-        ys = km.fit_predict(embeds)
+    # encoding
+    encoder = L.Classifier(Alex(class_labels))
+    chainer.serializers.load_npz('1model.npz', encoder)
+    encoder.to_gpu()
+    embeds = []
+    append = embeds.append
+    for itr in range(0, len(train_x), batch):
+        x = train_x[itr:itr + batch]
+        x = cuda.to_gpu(x.astype('f'))
+        x = cuda.to_cpu(encoder.predictor.encode(x).data)
+        [append(embed.flatten()) for embed in x]
+    train_x = np.array(embeds)
+
+    embeds = []
+    append = embeds.append
+    for itr in range(0, len(val_x), batch):
+        x = val_x[itr:itr + batch]
+        x = cuda.to_gpu(x.astype('f'))
+        x = cuda.to_cpu(encoder.predictor.encode(x).data)
+        [append(embed.flatten()) for embed in x]
+    val_x = np.array(embeds)
+
+    for epoch in range(1, args.epoch + 1):
 
         # prediction
         idx = np.random.permutation(len(train_x))
         for itr in range(0, len(train_x), batch):
             x = train_x[idx][itr:itr + batch]
-            y = ys[idx][itr:itr + batch]
+            y = train_y[idx][itr:itr + batch]
             x = cuda.to_gpu(x.astype('f'))
             y = cuda.to_gpu(y)
 
@@ -97,7 +106,7 @@ def main():
 
         print(acc / (len(val_x) / batch))
     model.to_cpu()
-    chainer.serializers.save_npz('100model.npz', model)
+    chainer.serializers.save_npz('mlpmodel.npz', model)
 
 
 if __name__ == '__main__':
