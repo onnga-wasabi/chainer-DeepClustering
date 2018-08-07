@@ -69,8 +69,11 @@ def main():
         embeds = np.array(embeds)
         pca = PCA(n_components=256)
         embeds = pca.fit_transform(embeds)
+        print('pca owari')
         km = KMeans(n_clusters=100)
         ys = km.fit_predict(embeds)
+        print('kmeans owari')
+        print(np.unique(ys))
 
         # prediction
         idx = np.random.permutation(len(train_x))
@@ -84,6 +87,7 @@ def main():
             model.cleargrads()
             loss.backward()
             optimizer.update()
+        print('gakushuusitaze-')
 
         # validation
         acc = 0
