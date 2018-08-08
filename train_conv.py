@@ -20,16 +20,9 @@ def parse():
                         help='Number of images in each mini-batch')
     parser.add_argument('--epoch', '-e', type=int, default=20,
                         help='Number of sweeps over the dataset to train')
-    parser.add_argument('--dataset', '-d', default='cifar10',
-                        help='dataset')
     parser.add_argument('--gpu', '-g', type=int, default=-1,
                         help='GPU ID (negative value indicates CPU)')
-    parser.add_argument('--out', '-o', default='result',
-                        help='Directory to output the result')
-    parser.add_argument('--resume', '-r', default='',
-                        help='Resume the training from snapshot')
-    parser.add_argument('--unit', '-u', type=int, default=1000,
-                        help='Number of units')
+    parser.add_argument('--clusters', '-c', type=int, default=10,)
     return parser.parse_args()
 
 
@@ -37,28 +30,28 @@ def main():
     args = parse()
 
     print('GPU: {}'.format(args.gpu))
-    print('# unit: {}'.format(args.unit))
     print('# Minibatch-size: {}'.format(args.batchsize))
     print('# epoch: {}'.format(args.epoch))
-    print('')
+    print()
 
     train_x, train_y, val_x, val_y = load_cifar()
-    class_labels = 10
+    class_labels = args.clusters
 
     model = L.Classifier(Alex(class_labels))
     if args.gpu >= 0:
         # Make a specified GPU current
-        chainer.backends.cuda.get_device_from_id(1).use()
+        chainer.backends.cuda.get_device_from_id(args.gpu).use()
         model.to_gpu()  # Copy the model to the GPU
 
     optimizer = chainer.optimizers.Adam()
     optimizer.setup(model)
     optimizer.add_hook(chainer.optimizer.WeightDecay(5e-4))
 
-    batch = 100
+    batch = args.batchsize
     for epoch in range(1, args.epoch + 1):
 
         # k-means
+        print(epoch)
         embeds = []
         append = embeds.append
         for itr in range(0, len(train_x), batch):
@@ -69,13 +62,11 @@ def main():
         embeds = np.array(embeds)
         pca = PCA(n_components=256)
         embeds = pca.fit_transform(embeds)
-        print('pca owari')
-        km = KMeans(n_clusters=100)
+        km = KMeans(n_clusters=class_labels)
         ys = km.fit_predict(embeds)
-        print('kmeans owari')
-        print(np.unique(ys))
 
         # prediction
+        acc = 0
         idx = np.random.permutation(len(train_x))
         for itr in range(0, len(train_x), batch):
             x = train_x[idx][itr:itr + batch]
@@ -83,25 +74,15 @@ def main():
             x = cuda.to_gpu(x.astype('f'))
             y = cuda.to_gpu(y)
 
-            loss = model(x, y)
             model.cleargrads()
+            loss = model(x, y)
             loss.backward()
             optimizer.update()
-        print('gakushuusitaze-')
-
-        # validation
-        acc = 0
-        for itr in range(0, len(val_x), batch):
-            x = val_x[itr:itr + batch]
-            y = val_y[itr:itr + batch]
-            x = cuda.to_gpu(x.astype('f'))
-            y = cuda.to_gpu(y)
-            model(x, y)
             acc += model.accuracy.data
+        print(acc / (len(train_x) / batch))
 
-        print(acc / (len(val_x) / batch))
     model.to_cpu()
-    chainer.serializers.save_npz('100model.npz', model)
+    chainer.serializers.save_npz('{}_model.npz'.format(class_labels), model)
 
 
 if __name__ == '__main__':

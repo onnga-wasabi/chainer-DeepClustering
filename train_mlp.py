@@ -2,14 +2,7 @@ import argparse
 import numpy as np
 import chainer
 import chainer.links as L
-import chainer.functions as F
 from chainer import cuda
-from chainer.datasets.cifar import (
-    get_cifar10,
-    get_cifar100,
-)
-from sklearn.decomposition import PCA
-from sklearn.cluster import KMeans
 from utils.model import Alex, MLP
 from utils.dataset import load_cifar
 
@@ -20,16 +13,9 @@ def parse():
                         help='Number of images in each mini-batch')
     parser.add_argument('--epoch', '-e', type=int, default=20,
                         help='Number of sweeps over the dataset to train')
-    parser.add_argument('--dataset', '-d', default='cifar10',
-                        help='dataset')
     parser.add_argument('--gpu', '-g', type=int, default=-1,
                         help='GPU ID (negative value indicates CPU)')
-    parser.add_argument('--out', '-o', default='result',
-                        help='Directory to output the result')
-    parser.add_argument('--resume', '-r', default='',
-                        help='Resume the training from snapshot')
-    parser.add_argument('--unit', '-u', type=int, default=1000,
-                        help='Number of units')
+    parser.add_argument('--clusters', '-c', type=int, default=10)
     return parser.parse_args()
 
 
@@ -37,10 +23,9 @@ def main():
     args = parse()
 
     print('GPU: {}'.format(args.gpu))
-    print('# unit: {}'.format(args.unit))
     print('# Minibatch-size: {}'.format(args.batchsize))
     print('# epoch: {}'.format(args.epoch))
-    print('')
+    print()
 
     train_x, train_y, val_x, val_y = load_cifar()
     class_labels = 10
@@ -48,18 +33,18 @@ def main():
     model = L.Classifier(MLP(class_labels))
     if args.gpu >= 0:
         # Make a specified GPU current
-        chainer.backends.cuda.get_device_from_id(1).use()
+        chainer.backends.cuda.get_device_from_id(args.gpu).use()
         model.to_gpu()  # Copy the model to the GPU
 
     optimizer = chainer.optimizers.Adam()
     optimizer.setup(model)
     optimizer.add_hook(chainer.optimizer.WeightDecay(5e-4))
 
-    batch = 100
+    batch = args.batchsize
 
     # encoding
     encoder = L.Classifier(Alex(class_labels))
-    chainer.serializers.load_npz('1model.npz', encoder)
+    chainer.serializers.load_npz('{}_model.npz'.format(args.clusters), encoder)
     encoder.to_gpu()
     embeds = []
     append = embeds.append
