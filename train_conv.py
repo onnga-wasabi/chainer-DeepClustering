@@ -2,16 +2,19 @@ import argparse
 import numpy as np
 import chainer
 import chainer.links as L
-import chainer.functions as F
 from chainer import cuda
-from chainer.datasets.cifar import (
-    get_cifar10,
-    get_cifar100,
-)
 from sklearn.decomposition import PCA
 from sklearn.cluster import KMeans
 from utils.model import Alex
-from utils.dataset import load_cifar
+from utils.dataset import (
+    load_cifar,
+    load_fashion_mnist,
+)
+
+datasets = {
+    'cifar': load_cifar(),
+    'fashion': load_fashion_mnist(),
+}
 
 
 def parse():
@@ -23,6 +26,7 @@ def parse():
     parser.add_argument('--gpu', '-g', type=int, default=-1,
                         help='GPU ID (negative value indicates CPU)')
     parser.add_argument('--clusters', '-c', type=int, default=10,)
+    parser.add_argument('--datasets', '-d', default='fashion')
     return parser.parse_args()
 
 
@@ -32,9 +36,10 @@ def main():
     print('GPU: {}'.format(args.gpu))
     print('# Minibatch-size: {}'.format(args.batchsize))
     print('# epoch: {}'.format(args.epoch))
+    print('# datasets: {}'.format(args.datasets))
     print()
 
-    train_x, train_y, val_x, val_y = load_cifar()
+    train_x, train_y, val_x, val_y = datasets[args.datasets]
     class_labels = args.clusters
 
     model = L.Classifier(Alex(class_labels))
